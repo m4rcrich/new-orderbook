@@ -1,7 +1,5 @@
 #[allow(unused_variable)]
 module perpetual_v3::keys {
-    use ifixed_v3::ifixed::{Self};
-    use oracle_v3::oracle::{Self};
     friend perpetual_v3::account;
     friend perpetual_v3::admin;
     friend perpetual_v3::clearing_house;
@@ -9,14 +7,9 @@ module perpetual_v3::keys {
     friend perpetual_v3::errors;
     friend perpetual_v3::events;
     friend perpetual_v3::interface;
-    friend perpetual_v3::market;
     friend perpetual_v3::oracle;
     friend perpetual_v3::order_id;
     friend perpetual_v3::orderbook;
-    friend perpetual_v3::ordered_map;
-    friend perpetual_v3::position;
-    friend perpetual_v3::registry;
-    friend perpetual_v3::subaccount;
 
     struct Registry has copy, drop, store {
         market_id: u64,

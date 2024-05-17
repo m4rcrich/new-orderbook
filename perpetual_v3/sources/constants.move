@@ -1,7 +1,5 @@
 #[allow(unused_variable)]
 module perpetual_v3::constants {
-    use ifixed_v3::ifixed::{Self};
-    use oracle_v3::oracle::{Self};
 
     public fun ask() : bool {
         true
