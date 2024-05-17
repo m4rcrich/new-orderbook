@@ -1,19 +1,5 @@
 #[allow(unused_variable)]
 module perpetual_v3::orderbook {
-    use ifixed_v3::ifixed::{Self};
-    use oracle_v3::oracle::{Self};
-    friend perpetual_v3::account;
-    friend perpetual_v3::admin;
-    friend perpetual_v3::clearing_house;
-    friend perpetual_v3::errors;
-    friend perpetual_v3::events;
-    friend perpetual_v3::interface;
-    friend perpetual_v3::market;
-    friend perpetual_v3::oracle;
-    friend perpetual_v3::order_id;
-    friend perpetual_v3::position;
-    friend perpetual_v3::registry;
-    friend perpetual_v3::subaccount;
 
     struct Order has copy, drop, store {
         account_id: u64,
