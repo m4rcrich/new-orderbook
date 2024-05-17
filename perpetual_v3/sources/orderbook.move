@@ -62,7 +62,7 @@ module perpetual_v3::orderbook {
         std::option::some<u64>((perpetual_v3::order_id::price_ask(perpetual_v3::ordered_map::min_key<Order>(get_asks(orderbook))) + perpetual_v3::order_id::price_bid(perpetual_v3::ordered_map::min_key<Order>(get_bids(orderbook)))) / 2)
     }
     
-    public(friend) fun cancel_limit_order(orderbook: &mut Orderbook, account_id: u64, order_id: u128) : u64 {
+    public fun cancel_limit_order(orderbook: &mut Orderbook, account_id: u64, order_id: u128) : u64 {
         let orders = if (perpetual_v3::order_id::is_ask(order_id)) {
             get_asks_mut(orderbook)
         } else {
@@ -73,12 +73,12 @@ module perpetual_v3::orderbook {
         order.size
     }
     
-    public(friend) fun change_maps_params(orderbook: &mut Orderbook, max_depth: u64, max_key: u64, max_value: u64, max_size: u64, max_load_factor: u64, max_load_factor_hard_limit: u64) {
+    public fun change_maps_params(orderbook: &mut Orderbook, max_depth: u64, max_key: u64, max_value: u64, max_size: u64, max_load_factor: u64, max_load_factor_hard_limit: u64) {
         perpetual_v3::ordered_map::change_params<Order>(get_asks_mut(orderbook), max_depth, max_key, max_value, max_size, max_load_factor, max_load_factor_hard_limit);
         perpetual_v3::ordered_map::change_params<Order>(get_bids_mut(orderbook), max_depth, max_key, max_value, max_size, max_load_factor, max_load_factor_hard_limit);
     }
     
-    public(friend) fun create_empty_post_receipt() : PostReceipt {
+    public fun create_empty_post_receipt() : PostReceipt {
         PostReceipt{
             base_ask       : 0, 
             base_bid       : 0, 
@@ -86,7 +86,7 @@ module perpetual_v3::orderbook {
         }
     }
     
-    public(friend) fun create_orderbook(max_depth: u64, max_key: u64, max_value: u64, max_size: u64, max_load_factor: u64, max_load_factor_hard_limit: u64, ctx: &mut sui::tx_context::TxContext) : Orderbook {
+    public fun create_orderbook(max_depth: u64, max_key: u64, max_value: u64, max_size: u64, max_load_factor: u64, max_load_factor_hard_limit: u64, ctx: &mut sui::tx_context::TxContext) : Orderbook {
         let orderbook = Orderbook{
             id      : sui::object::new(ctx), 
             counter : 0,
@@ -262,7 +262,7 @@ module perpetual_v3::orderbook {
         *counter
     }
 
-    public(friend) fun inspect_orders(orderbook: &Orderbook, is_ask: bool, start_price: u64, end_price: u64) : vector<OrderInfo> {
+    public fun inspect_orders(orderbook: &Orderbook, is_ask: bool, start_price: u64, end_price: u64) : vector<OrderInfo> {
         let order_infos = std::vector::empty<OrderInfo>();
         let (orders, start_order_id, end_order_id) = if (is_ask == perpetual_v3::constants::ask()) {
             (get_asks(orderbook), perpetual_v3::order_id::order_id_ask(start_price, 0), end_price)
@@ -300,14 +300,14 @@ module perpetual_v3::orderbook {
         order_infos
     }
 
-    public(friend) fun place_limit_order(orderbook: &mut Orderbook, account_id: u64, is_ask: bool, size: u64, price: u64, order_type: u64, fill_receipts: &mut vector<FillReceipt>, post_receipt: &mut PostReceipt, market_id: &sui::object::ID) : u64 {
+    public fun place_limit_order(orderbook: &mut Orderbook, account_id: u64, is_ask: bool, size: u64, price: u64, order_type: u64, fill_receipts: &mut vector<FillReceipt>, post_receipt: &mut PostReceipt, market_id: &sui::object::ID) : u64 {
         assert!(order_type < perpetual_v3::constants::order_types(), perpetual_v3::errors::flag_requirements_violated());
         let remaining_size = fill_limit_order(orderbook, account_id, is_ask, size, price, order_type, fill_receipts);
         post_order(orderbook, account_id, is_ask, remaining_size, price, post_receipt, market_id);
         remaining_size
     }
 
-    public(friend) fun place_market_order(orderbook: &mut Orderbook, account_id: u64, is_ask: bool, size: u64, fill_receipts: &mut vector<FillReceipt>) {
+    public fun place_market_order(orderbook: &mut Orderbook, account_id: u64, is_ask: bool, size: u64, fill_receipts: &mut vector<FillReceipt>) {
         fill_market_order(orderbook, account_id, is_ask, size, fill_receipts);
     }
 
