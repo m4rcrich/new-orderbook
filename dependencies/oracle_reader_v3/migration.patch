@@ -1,0 +1,40 @@
+--- sources/oracle_reader.move
++++ sources/oracle_reader.move
+@@ -7 +7 @@
+-        let v1 = sui::linked_table::front<oracle_v3::keys::PriceFeedForSource, oracle_v3::oracle::PriceFeed>(v0);
++        let mut v1 = sui::linked_table::front<oracle_v3::keys::PriceFeedForSource, oracle_v3::oracle::PriceFeed>(v0);
+@@ -9,2 +9,2 @@
+-        let v3 = 0;
+-        let v4 = 0;
++        let mut v3 = 0;
++        let mut v4 = 0;
+@@ -33,3 +33,3 @@
+-        let v2 = 0;
+-        let v3 = 0;
+-        let v4 = 0;
++        let mut v2 = 0;
++        let mut v3 = 0;
++        let mut v4 = 0;
+@@ -57 +57 @@
+-        let v1 = sui::linked_table::front<oracle_v3::keys::PriceFeedForSource, oracle_v3::oracle::PriceFeed>(v0);
++        let mut v1 = sui::linked_table::front<oracle_v3::keys::PriceFeedForSource, oracle_v3::oracle::PriceFeed>(v0);
+@@ -59,2 +59,2 @@
+-        let v3 = 0;
+-        let v4 = 0;
++        let mut v3 = 0;
++        let mut v4 = 0;
+@@ -83,3 +83,3 @@
+-        let v2 = 0;
+-        let v3 = 0;
+-        let v4 = 0;
++        let mut v2 = 0;
++        let mut v3 = 0;
++        let mut v4 = 0;
+@@ -133 +133 @@
+-        let v1 = v0;
++        let mut v1 = v0;
+@@ -148,2 +148,2 @@
+-        let v2 = sui::linked_table::front<oracle_v3::keys::PriceFeedForSource, oracle_v3::oracle::PriceFeed>(v1);
+-        let v3 = std::vector::empty<u256>();
++        let mut v2 = sui::linked_table::front<oracle_v3::keys::PriceFeedForSource, oracle_v3::oracle::PriceFeed>(v1);
++        let mut v3 = std::vector::empty<u256>();
