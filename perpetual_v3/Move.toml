@@ -13,6 +13,9 @@ Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-fram
 
 # For local dependencies use `local = path`. Path is relative to the package root
 # Local = { local = "../path/to" }
+ifixed_v3 = { local = "../ifixed_v3" }
+oracle_v3 = { local = "../oracle_v3" }
+oracle_reader_v3 = { local = "../oracle_reader_v3" }
 
 # To resolve a version conflict and force a specific version for dependency
 # override use `override = true`
@@ -20,6 +23,10 @@ Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-fram
 
 [addresses]
 perpetual_v3 = "0x0"
+ifixed_v3 = "0x1"
+oracle_v3 = "0x2"
+oracle_reader_v3 = "0x3"
+
 
 # Named addresses will be accessible in Move as `@name`. They're also exported:
 # for example, `std = "0x1"` is exported by the Standard Library.

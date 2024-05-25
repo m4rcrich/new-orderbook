@@ -1,13 +1,8 @@
 #[allow(unused_variable)]
 module perpetual_v3::keys {
-    friend perpetual_v3::account;
-    friend perpetual_v3::admin;
-    friend perpetual_v3::clearing_house;
     friend perpetual_v3::constants;
     friend perpetual_v3::errors;
     friend perpetual_v3::events;
-    friend perpetual_v3::interface;
-    friend perpetual_v3::oracle;
     friend perpetual_v3::order_id;
     friend perpetual_v3::orderbook;
 

@@ -2,10 +2,13 @@
 
 [move]
 version = 1
-manifest_digest = "3FD152579D46D3D9F0C859FFD91770B2979A8D8529ECF0C86D39AF15AC413A1F"
-deps_digest = "F8BBB0CCB2491CA29A3DF03D6F92277A4F3574266507ACD77214D37ECA3F3082"
+manifest_digest = "5FE052546468D3BD2BC532381E8F6D9C42218FB379FFE105D23BF94AB5409A5E"
+deps_digest = "F9B494B64F0615AED0E98FC12A85B85ECD2BC5185C22D30E7F67786BB52E507C"
 dependencies = [
   { name = "Sui" },
+  { name = "ifixed_v3" },
+  { name = "oracle_reader_v3" },
+  { name = "oracle_v3" },
 ]
 
 [[move.package]]
@@ -18,4 +21,31 @@ source = { git = "https://github.com/MystenLabs/sui.git", rev = "framework/testn
 
 dependencies = [
   { name = "MoveStdlib" },
+]
+
+[[move.package]]
+name = "ifixed_v3"
+source = { local = "../ifixed_v3" }
+
+dependencies = [
+  { name = "Sui" },
+]
+
+[[move.package]]
+name = "oracle_reader_v3"
+source = { local = "../oracle_reader_v3" }
+
+dependencies = [
+  { name = "Sui" },
+  { name = "ifixed_v3" },
+  { name = "oracle_v3" },
+]
+
+[[move.package]]
+name = "oracle_v3"
+source = { local = "../oracle_v3" }
+
+dependencies = [
+  { name = "Sui" },
+  { name = "ifixed_v3" },
 ]

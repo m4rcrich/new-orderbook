@@ -2,21 +2,11 @@
 module perpetual_v3::ordered_map {
     use ifixed_v3::ifixed::{Self};
     use oracle_v3::oracle::{Self};
-    friend perpetual_v3::account;
-    friend perpetual_v3::admin;
-    friend perpetual_v3::clearing_house;
     friend perpetual_v3::constants;
     friend perpetual_v3::errors;
     friend perpetual_v3::events;
-    friend perpetual_v3::interface;
-    friend perpetual_v3::keys;
-    friend perpetual_v3::market;
-    friend perpetual_v3::oracle;
     friend perpetual_v3::order_id;
     friend perpetual_v3::orderbook;
-    friend perpetual_v3::position;
-    friend perpetual_v3::registry;
-    friend perpetual_v3::subaccount;
     
     struct Map<phantom T0: copy + drop + store> has store, key {
         id: sui::object::UID,
@@ -55,7 +45,8 @@ module perpetual_v3::ordered_map {
     }
     
     public(friend) fun borrow_mut<T0: copy + drop + store>(map: &mut Map<T0>, key: u128) : &mut T0 {
-        let leaf = sui::dynamic_field::borrow_mut<u64, Leaf<T0>>(&mut map.id, find_leaf<T0>(map, key));
+        let leaf_id = find_leaf<T0>(map, key);
+        let leaf = sui::dynamic_field::borrow_mut<u64, Leaf<T0>>(&mut map.id, leaf_id);
         let leaf_keys_vals = &leaf.keys_vals;
         let pair = std::vector::borrow_mut<Pair<T0>>(&mut leaf.keys_vals, binary_search_p<T0>(leaf_keys_vals, std::vector::length<Pair<T0>>(leaf_keys_vals), key));
         assert!(key == pair.key, perpetual_v3::errors::key_not_exist());
@@ -142,7 +133,7 @@ module perpetual_v3::ordered_map {
                         continue
                     } else {
                         break
-                    };
+                    }
                 };
                 let new_branch_keys = std::vector::empty<u128>();
                 std::vector::push_back<u128>(&mut new_branch_keys, split_key_copy);
@@ -300,7 +291,7 @@ module perpetual_v3::ordered_map {
                 kid_index
             };
             let branch_kids = &mut branch.kids;
-            let kid_id = *std::vector::borrow_mut<u64>(branch_kids, kid_index);
+            let kid_id = *std::vector::borrow<u64>(branch_kids, kid_index);
             let is_branch = 9223372036854775808 & kid_id == 0;
             drop_left<u128>(&mut branch.keys, kid_index_inclusive);
             let dropped_kids = if (is_branch) {
@@ -311,8 +302,8 @@ module perpetual_v3::ordered_map {
             };
             let remaining_size = branch_size - kid_index_inclusive;
             if (remaining_size == 0) {
-                drop_kids<T>(map, kid_index_inclusive, is_branch, dropped_kids);
                 let removed_branch = sui::dynamic_field::remove<u64, Branch>(&mut map.id, node_id);
+                drop_kids<T>(map, kid_index_inclusive, is_branch, dropped_kids);
                 let new_root = std::vector::pop_back<u64>(&mut removed_branch.kids);
                 node_id = new_root;
                 map.root = new_root;
@@ -326,9 +317,8 @@ module perpetual_v3::ordered_map {
                 return
             };
             let new_split_key = *std::vector::borrow_mut<u128>(&mut branch.keys, 0);
-            drop_kids<T>(map, kid_index_inclusive, is_branch, dropped_kids);
             if (is_branch) {
-                let new_split_key_from_branch = batch_drop_from_branch<T>(map, kid_id, new_split_key, *std::vector::borrow_mut<u64>(branch_kids, 1), key);
+                let new_split_key_from_branch = batch_drop_from_branch<T>(map, kid_id, new_split_key, *std::vector::borrow<u64>(branch_kids, 1), key);
                 if (new_split_key_from_branch != new_split_key) {
                     let branch = sui::dynamic_field::borrow_mut<u64, Branch>(&mut map.id, node_id);
                     if (new_split_key_from_branch == 0) {
@@ -344,11 +334,14 @@ module perpetual_v3::ordered_map {
                     *std::vector::borrow_mut<u128>(&mut branch.keys, 0) = new_split_key_from_branch;
                     return
                 };
+                drop_kids<T>(map, kid_index_inclusive, is_branch, dropped_kids);
                 return
             };
-            let remaining_leaf_size = batch_drop_from_leaf<T>(map, kid_id, key);
+            let kid_id_copy = kid_id;
+            drop_kids<T>(map, kid_index_inclusive, is_branch, dropped_kids);
+            let remaining_leaf_size = batch_drop_from_leaf<T>(map, kid_id_copy, key);
             if (remaining_leaf_size < map.leaf_min) {
-                let new_split_key_from_leaf = migrate_to_left_leaf<T>(map, kid_id, remaining_leaf_size, *std::vector::borrow_mut<u64>(branch_kids, 1));
+                let new_split_key_from_leaf = migrate_to_left_leaf<T>(map, kid_id_copy, remaining_leaf_size, *std::vector::borrow<u64>(branch_kids, 1));
                 let branch = sui::dynamic_field::borrow_mut<u64, Branch>(&mut map.id, node_id);
                 if (new_split_key_from_leaf == 0) {
                     drop_first<u128>(&mut branch.keys);

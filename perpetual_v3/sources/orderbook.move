@@ -316,9 +316,11 @@ module perpetual_v3::orderbook {
             return
         };
         let (orders, order_id) = if (is_ask == perpetual_v3::constants::ask()) {
-            (get_asks_mut(orderbook), perpetual_v3::order_id::order_id_ask(price, increase_counter(&mut orderbook.counter)))
+            let order_id = perpetual_v3::order_id::order_id_ask(price, increase_counter(&mut orderbook.counter));
+            (get_asks_mut(orderbook), order_id)
         } else {
-            (get_bids_mut(orderbook), perpetual_v3::order_id::order_id_bid(price, increase_counter(&mut orderbook.counter)))
+            let order_id = perpetual_v3::order_id::order_id_bid(price, increase_counter(&mut orderbook.counter));
+            (get_bids_mut(orderbook), order_id)
         };
         let order = Order{
             account_id : account_id, 

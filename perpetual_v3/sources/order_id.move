@@ -1,22 +1,6 @@
 #[allow(unused_variable)]
 module perpetual_v3::order_id {
-    use ifixed_v3::ifixed::{Self};
-    use oracle_v3::oracle::{Self};
-    friend perpetual_v3::account;
-    friend perpetual_v3::admin;
-    friend perpetual_v3::clearing_house;
-    friend perpetual_v3::constants;
-    friend perpetual_v3::errors;
-    friend perpetual_v3::events;
-    friend perpetual_v3::interface;
-    friend perpetual_v3::keys;
-    friend perpetual_v3::market;
-    friend perpetual_v3::oracle;
     friend perpetual_v3::orderbook;
-    friend perpetual_v3::ordered_map;
-    friend perpetual_v3::position;
-    friend perpetual_v3::registry;
-    friend perpetual_v3::subaccount;
 
     public fun order_id(arg0: u64, arg1: u64, arg2: bool) : u128 {
         if (arg2 == perpetual_v3::constants::ask()) {
