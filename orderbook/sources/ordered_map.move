@@ -38,7 +38,8 @@ module orderbook::bp_tree {
         val: ValType,
     }
 
-
+    // children_order: min number of keys in a node; max number of keys in a node is 2 * children_order, max number of children in a node is 2 * children_order + 1
+    // leaf_order: min number of keys in a leaf; max number of keys in a leaf is 2 * leaf_order
     public(package) fun empty<ValType: copy + drop + store>(children_order: u64, leaf_order: u64, ctx: &mut TxContext) : BPTree<ValType> {
         let root = LEAF_FLAG;
         let mut bp_tree = BPTree<ValType>{
@@ -61,6 +62,7 @@ module orderbook::bp_tree {
     }
 
     public(package) fun insert<ValType: copy + drop + store>(self: &mut BPTree<ValType>, key: u128, val: ValType) {
+        // std::debug::print(&std::string::utf8(b"insert"));
         let mut current_id = self.root;
         let mut back_track_ids = vector[];
         let mut back_track_children_indexes = vector[];
@@ -103,6 +105,9 @@ module orderbook::bp_tree {
             let mut new_node_id = new_leaf_id;
             let mut add_root = true;
 
+            // std::debug::print(&back_track_ids);
+            // std::debug::print(&back_track_children_indexes);
+
             while (back_track_ids.length() > 0) {
                 let node_id = back_track_ids.pop_back();
                 let node = field::borrow_mut<u64, Node>(&mut self.id, node_id);
@@ -113,11 +118,20 @@ module orderbook::bp_tree {
                 // if node is full then split
                 if (node.children.length() > self.children_max) {
                     // split node's children
+                    // std::debug::print(&std::string::utf8(b"before split"));
+                    // std::debug::print(&node.keys);
+                    // std::debug::print(&node.children);
                     let start_cut = node.children.length() / 2;
                     let new_node = Node {
-                        keys: cut_right(&mut node.keys, start_cut + 1), // !!! CHECK "+1" !!!
+                        keys: cut_right(&mut node.keys, start_cut),
                         children: cut_right(&mut node.children, start_cut),
                     };
+                    // std::debug::print(&std::string::utf8(b"after split"));
+                    // std::debug::print(&node.keys);
+                    // std::debug::print(&new_node.keys);
+                    // std::debug::print(&node.children);
+                    // std::debug::print(&new_node.children);
+
                     mid_key = node.keys.pop_back();
                     new_node_id = self.counter;
                     self.counter = self.counter + 1;
@@ -152,8 +166,11 @@ module orderbook::bp_tree {
 
 
     fun binary_search(keys: &vector<u128>, target: u128): u64 {
+        if (keys.length() == 0) {
+            return 0
+        };
         let mut left = 0;
-        let mut right = keys.length();
+        let mut right = keys.length() - 1;
         while (left <= right) {
             let mid = (left + right) / 2;
             let key = keys[mid];
@@ -170,8 +187,11 @@ module orderbook::bp_tree {
 
     // returns (index, found)
     fun binary_search_leaf<ValType: copy + drop + store>(keys_vals : &vector<KeyVal<ValType>>, target_key: u128): (u64, bool) {
+        if (keys_vals.length() == 0) {
+            return (0, false)
+        };
         let mut left = 0;
-        let mut right = keys_vals.length();
+        let mut right = keys_vals.length() - 1;
         while (left <= right) {
             let mid = (left + right) / 2;
             let key = keys_vals[mid].key;
@@ -209,6 +229,50 @@ module orderbook::bp_tree {
         assert!(result == vector[4, 5, 6, 7], 0);
     }
 
+    #[test_only]
+    public fun traverse_tree<ValType: copy + drop + store>(self: &BPTree<ValType>): vector<vector<u128>> {
+        let mut result = vector[];
+
+        // BFS
+        let mut queue = vector[self.root];
+
+        while (queue.length() > 0) {
+            let current_id = queue.remove(0);
+            if (current_id & LEAF_FLAG == 0) {
+
+                let node = field::borrow<u64, Node>(&self.id, current_id);
+                let mut node_res = vector[];
+                let mut i = 0;
+                while (i < node.keys.length()) {
+                    node_res.push_back(node.keys[i]);
+                    i = i + 1;
+                };
+                result.push_back(node_res);
+                let mut i = 0;
+                while (i < node.children.length()) {
+                    queue.push_back(node.children[i]);
+                    i = i + 1;
+                };
+            } else {
+                let leaf = field::borrow<u64, Leaf<ValType>>(&self.id, current_id);
+                let mut leaf_res = vector[];
+                let mut i = 0;
+                while (i < leaf.keys_vals.length()) {
+                    leaf_res.push_back(leaf.keys_vals[i].key);
+                    i = i + 1;
+                };
+                result.push_back(leaf_res);
+            }
+        };
+        result
+    }
+
+
+    #[test_only]
+    public fun drop<ValType: copy + drop + store>(self: BPTree<ValType>) {
+        let BPTree { id, size: _, counter: _, root: _, first: _, children_min: _, children_max: _, leaf_min: _, leaf_max: _ } = self;
+        id.delete();
+    }
 
 
 }
