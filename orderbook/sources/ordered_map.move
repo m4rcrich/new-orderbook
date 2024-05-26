@@ -92,8 +92,6 @@ module orderbook::bp_tree {
 
     }
 
-
-
     fun binary_search(keys: &vector<u128>, target: u128): u64 {
         let mut left = 0;
         let mut right = keys.length();
@@ -129,4 +127,49 @@ module orderbook::bp_tree {
         (left, false)
     }
 
+    //TODO: rework once ordered_map is more defined
+    #[test_only]
+    public fun new_leaf_for_test<ValType: copy + drop + store>(keys_vals: vector<KeyVal<ValType>>, next: u64): Leaf<ValType> {
+        Leaf<ValType> {
+            keys_vals,
+            next
+        }
+    }
+    
+    #[test_only]
+    public fun check_tree_struct<ValType: copy + drop + store> (
+        tree: &BPTree<ValType>,
+        expected_keys: &vector<u64>,
+        expected_root: u64,
+        expected_first: u64
+    ): bool {
+        if (tree.root != expected_root || tree.first != expected_first) {
+            return false;
+        }
+
+        let mut i = 0;
+        while (i < vector::length(expected_keys)) {
+            let expected_key = expected_keys[i];
+            let x = vector<u64>[expected_key];
+            if(binary_search(&tree.id, x) == 0) { //this works off a binary search for the whole tree 
+                //I'm assuming the current binary search will return 0 if key not found
+                return false;
+            }
+            i = i + 1;
+        }
+        true
+    }
+
+    #[test_only]
+    public fun check_empty_tree<ValType: copy + drop + store>(tree: &BPTree<ValType>) {
+        
+        assert!(tree.size == 0); 
+        assert!(tree.counter == 1);
+        assert!(tree.root == (LEAF_FLAG | 1));
+        assert!(tree.first == (LEAF_FLAG | 1));
+        
+        let leaf = field::borrow<u64, Leaf<ValType>>(&tree.id, 1);
+        assert!(vector::length(&leaf.keys_vals) == 0);
+        assert!(leaf.next == 0);
+    }
 }
