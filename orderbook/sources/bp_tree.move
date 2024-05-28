@@ -163,8 +163,6 @@ module orderbook::bp_tree {
 
     }
 
-
-
     fun binary_search(keys: &vector<u128>, target: u128): u64 {
         if (keys.length() == 0) {
             return 0
@@ -266,7 +264,6 @@ module orderbook::bp_tree {
         };
         result
     }
-
 
     #[test_only]
     public fun drop<ValType: copy + drop + store>(self: BPTree<ValType>) {
