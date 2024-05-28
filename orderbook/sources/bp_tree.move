@@ -94,11 +94,16 @@ module orderbook::bp_tree {
             let new_leaf_id = LEAF_FLAG | self.counter;
             self.counter = self.counter + 1;
             leaf.next = new_leaf_id;
+            // std::debug::print(&std::string::utf8(b"before split leaf"));
+            // std::debug::print(&leaf.keys_vals);
             let start_cut = leaf.keys_vals.length() / 2;
             let new_leaf = Leaf<ValType> {
-                keys_vals: cut_right(&mut leaf.keys_vals, start_cut),
+                keys_vals: cut_right(&mut leaf.keys_vals, start_cut + 1), // why + 1?
                 next: leaf.next,
             };
+            // std::debug::print(&std::string::utf8(b"after split leaf"));
+            // std::debug::print(&leaf.keys_vals);
+            // std::debug::print(&new_leaf.keys_vals);
             let mut mid_key = new_leaf.keys_vals[0].key;
             field::add(&mut self.id, new_leaf_id, new_leaf);
 
@@ -123,7 +128,7 @@ module orderbook::bp_tree {
                     // std::debug::print(&node.children);
                     let start_cut = node.children.length() / 2;
                     let new_node = Node {
-                        keys: cut_right(&mut node.keys, start_cut),
+                        keys: cut_right(&mut node.keys, start_cut - 1),
                         children: cut_right(&mut node.children, start_cut),
                     };
                     // std::debug::print(&std::string::utf8(b"after split"));
@@ -204,16 +209,17 @@ module orderbook::bp_tree {
         (left, false)
     }
 
-    fun cut_right<ValType: copy + drop + store>(vec: &mut vector<ValType>, cut_index: u64) : vector<ValType> {
+    fun cut_right<T: copy + drop + store>(vec: &mut vector<T>, mut cut_num: u64) : vector<T> {
         let mut result = vector[];
-        let mut i = cut_index;
+        let mut i = vec.length() - cut_num;
         while (i < vec.length()) {
             result.push_back(vec[i]);
             i = i + 1;
         };
 
-        while (cut_index < vec.length()) {
+        while (cut_num > 0) {
             vec.pop_back();
+            cut_num = cut_num - 1;
         };
 
         result
@@ -222,7 +228,7 @@ module orderbook::bp_tree {
     #[test]
     fun cut_right_test() {
         let mut vec = vector[1, 2, 3, 4, 5, 6, 7];
-        let result = cut_right(&mut vec, 3);
+        let result = cut_right(&mut vec, 4);
         assert!(vec == vector[1, 2, 3], 0);
         assert!(result == vector[4, 5, 6, 7], 0);
     }
