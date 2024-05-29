@@ -4,6 +4,7 @@ module orderbook::bp_tree {
     // === Errors ===
 
     const EKeyAlreadyExists: u64 = 0;
+    const EKeyNotFound: u64 = 1;
 
 
 
@@ -59,6 +60,38 @@ module orderbook::bp_tree {
         };
         field::add(&mut bp_tree.id, root, leaf);
         bp_tree
+    }
+
+    public(package) fun first_leaf_ptr<ValType: copy + drop + store>(self: &BPTree<ValType>): u64 {
+        self.first
+    }
+
+    public(package) fun borrow_leaf<ValType: copy + drop + store>(self: &BPTree<ValType>, leaf_id: u64): &Leaf<ValType> {
+        field::borrow<u64, Leaf<ValType>>(&self.id, leaf_id)
+    }
+
+    public(package) fun borrow_leaf_mut<ValType: copy + drop + store>(self: &mut BPTree<ValType>, leaf_id: u64): &mut Leaf<ValType> {
+        field::borrow_mut<u64, Leaf<ValType>>(&mut self.id, leaf_id)
+    }
+
+    public(package) fun borrow_leaf_elem<ValType: copy + drop + store>(leaf: &Leaf<ValType>, index: u64): (u128, &ValType) {
+        // let key_val = leaf.keys_vals.borrow(index);
+        let key_val = &leaf.keys_vals[index];
+        (key_val.key, &key_val.val)
+    }
+
+    public(package) fun borrow_leaf_elem_mut<ValType: copy + drop + store>(leaf: &mut Leaf<ValType>, index: u64): (u128, &mut ValType) {
+        // let key_val = leaf.keys_vals.borrow_mut(index);
+        let key_val = &mut leaf.keys_vals[index];
+        (key_val.key, &mut key_val.val)
+    }
+
+    public(package) fun leaf_next<ValType: copy + drop + store>(leaf: &Leaf<ValType>): u64 {
+        leaf.next
+    }
+
+    public(package) fun leaf_size<ValType: copy + drop + store>(leaf: &Leaf<ValType>): u64 {
+        leaf.keys_vals.length()
     }
 
     public(package) fun insert<ValType: copy + drop + store>(self: &mut BPTree<ValType>, key: u128, val: ValType) {
@@ -168,6 +201,187 @@ module orderbook::bp_tree {
 
     }
 
+    public(package) fun remove<ValType: copy + drop + store>(self: &mut BPTree<ValType>, key: u128): ValType {
+        let root = self.root;
+        if (root & LEAF_FLAG == 0) {
+            let (removed_val, remaining_size) = self.remove_from_node(root, key);
+            if (remaining_size == 1) {
+                let node = field::remove<u64, Node>(&mut self.id, root);
+                self.root = node.children[0];
+            };
+            removed_val
+        } else {
+            let (removed_val, _) = self.remove_from_leaf(root, key);
+            removed_val
+        }
+    }
+
+    fun remove_from_node<ValType: copy + drop + store>(self: &mut BPTree<ValType>, node_id: u64, key: u128) : (ValType, u64) {
+        let node = field::borrow<u64, Node>(&self.id, node_id);
+        let node_keys = node.keys;
+        let node_children = node.children;
+        let mut keys_num = node_keys.length();
+        let child_index = binary_search(&node.keys, key);
+        let child_id = node.children[child_index];
+        if (child_id & LEAF_FLAG == 0) {
+            if (child_index < keys_num) {
+                let (removed_val, remaining_size) = self.remove_from_node(child_id, key);
+                if (remaining_size < self.children_min) {
+                    let split_key = node_keys[child_index];
+                    let from_id = node_children[child_index + 1];
+                    let new_split_key = migrate_to_left_branch(self, child_id, remaining_size, split_key, from_id);
+                    update_after_migration(self, node_id, &mut keys_num, child_index, new_split_key);
+                };
+                (removed_val, keys_num + 1) // why +1, check node.keys.length() here
+            } else {
+                let (removed_val, remaining_size) = self.remove_from_node(child_id, key);
+                if (remaining_size < self.children_min) {
+                    let prev_child_index = child_index - 1;
+                    let split_key = node_keys[prev_child_index];
+                    let from_id = node_children[prev_child_index];
+                    let new_split_key = migrate_to_right_branch(self, from_id, split_key, child_id, remaining_size);
+                    update_after_migration_last(self, node_id, &mut keys_num, prev_child_index, new_split_key);
+                };
+                (removed_val, keys_num + 1)
+            }
+        } else {
+            if (child_index < keys_num) {
+                let (removed_val, remaining_size) = self.remove_from_leaf(child_id, key);
+                if (remaining_size < self.leaf_min) {
+                    let from_id = node_children[child_index + 1];
+                    let new_split_key = migrate_to_left_leaf(self, child_id, remaining_size, from_id);
+                    update_after_migration(self, node_id, &mut keys_num, child_index, new_split_key);
+                };
+                (removed_val, keys_num + 1)
+            } else {
+                let (removed_val, remaining_size) = self.remove_from_leaf(child_id, key);
+                if (remaining_size < self.leaf_min) {
+                    let prev_child_index = child_index - 1;
+                    let from_id = node_children[prev_child_index];
+                    let new_split_key = migrate_to_right_leaf(self, from_id, child_id, remaining_size);
+                    update_after_migration_last(self, node_id, &mut keys_num, prev_child_index, new_split_key);
+                };
+                (removed_val, keys_num + 1)
+            }
+        }
+    }
+
+
+    fun remove_from_leaf<ValType: copy + drop + store>(self: &mut BPTree<ValType>, leaf_id: u64, key: u128): (ValType, u64) {
+        let leaf = field::borrow_mut<u64, Leaf<ValType>>(&mut self.id, leaf_id);
+        let (index, found) = binary_search_leaf(&leaf.keys_vals, key);
+        assert!(found, EKeyNotFound);
+        let key_val = leaf.keys_vals.remove(index);
+        self.size = self.size - 1;
+        (key_val.val, leaf.keys_vals.length())
+    }
+
+    fun migrate_to_left_branch<ValType: copy + drop + store>(self: &mut BPTree<ValType>, left_id: u64, left_size: u64, split_key: u128, right_id: u64) : u128 {
+        let right_node = field::borrow_mut<u64, Node>(&mut self.id, right_id);
+        let merged_size = left_size + right_node.children.length();
+        if (merged_size <= self.children_max) { //???CHECK
+            merge_branches(self, left_id, split_key, right_id);
+            return 0
+        };
+        let migrate_count = (merged_size + 1) / 2 - left_size;
+        let (new_split_key, migrated_keys) = cut_reversed_left1<u128>(&mut right_node.keys, migrate_count);
+        let migrated_children = cut_reversed_left(&mut right_node.children, migrate_count);
+        let left_node = field::borrow_mut<u64, Node>(&mut self.id, left_id);
+        left_node.keys.push_back(split_key);
+        append_reversed_right(&mut left_node.keys, migrated_keys);
+        append_reversed_right(&mut left_node.children, migrated_children);
+        new_split_key
+    }
+
+    fun migrate_to_right_branch<T: copy + drop + store>(self: &mut BPTree<T>, left_id: u64, split_key: u128, right_id: u64, right_size: u64) : u128 {
+        let left_node = field::borrow_mut<u64, Node>(&mut self.id, left_id);
+        let merged_size = left_node.keys.length() + right_size;
+        if (merged_size <= self.children_max) { //???CHECK
+            merge_branches(self, left_id, split_key, right_id);
+            return 0
+        };
+        let migrate_count = merged_size / 2 - right_size;
+        let mut migrated_keys = cut_right(&mut left_node.keys, migrate_count - 1);
+        let migrated_children = cut_right(&mut left_node.children, migrate_count);
+        let new_split_key = left_node.keys.pop_back();
+        let right_node = field::borrow_mut<u64, Node>(&mut self.id, right_id);
+        migrated_keys.push_back(split_key);
+        append_left(migrated_keys, &mut right_node.keys);
+        append_left(migrated_children, &mut right_node.children);
+        new_split_key
+    }
+
+    fun merge_branches<ValType: copy + drop + store>(self: &mut BPTree<ValType>, left_id: u64, split_key: u128, right_id: u64) {
+        let Node {
+            keys: right_keys,
+            children: right_children,
+        } = field::remove<u64, Node>(&mut self.id, right_id);
+        let left_node = field::borrow_mut<u64, Node>(&mut self.id, left_id);
+        left_node.keys.push_back(split_key);
+        append_right(&mut left_node.keys, &right_keys);
+        append_right(&mut left_node.children, &right_children);
+    }
+
+    fun migrate_to_left_leaf<ValType: copy + drop + store>(self: &mut BPTree<ValType>, left_id: u64, left_size: u64, right_id: u64) : u128 {
+        let right_leaf = field::borrow_mut<u64, Leaf<ValType>>(&mut self.id, right_id);
+        let merged_size = left_size + right_leaf.keys_vals.length();
+        if (merged_size <= self.leaf_max) { //???CHECK
+            merge_leaves(self, left_id, right_id);
+            return 0
+        };
+        let migrated_keys_vals = cut_reversed_left(&mut right_leaf.keys_vals, merged_size / 2 - left_size);
+        let left_leaf = field::borrow_mut<u64, Leaf<ValType>>(&mut self.id, left_id);
+        append_reversed_right(&mut left_leaf.keys_vals, migrated_keys_vals);
+        left_leaf.keys_vals[left_leaf.keys_vals.length() - 1].key
+    }
+
+    fun migrate_to_right_leaf<ValType: copy + drop + store>(self: &mut BPTree<ValType>, left_id: u64, right_id: u64, right_size: u64) : u128 {
+        let left_leaf = field::borrow_mut<u64, Leaf<ValType>>(&mut self.id, left_id);
+        let merged_size = left_leaf.keys_vals.length() + right_size;
+        if (merged_size <= self.leaf_max) { //???CHECK
+            merge_leaves(self, left_id, right_id);
+            return 0
+        };
+        let migrated_keys_vals = cut_right(&mut left_leaf.keys_vals, merged_size / 2 - right_size);
+        let last = left_leaf.keys_vals[left_leaf.keys_vals.length() - 1].key;
+        let right_leaf = field::borrow_mut<u64, Leaf<ValType>>(&mut self.id, right_id);
+        append_left(migrated_keys_vals, &mut right_leaf.keys_vals);
+        last
+    }
+
+    fun merge_leaves<ValType: copy + drop + store>(self: &mut BPTree<ValType>, left_id: u64, right_id: u64) {
+        let Leaf {
+            keys_vals: right_keys_vals,
+            next: right_next,
+        } = field::remove<u64, Leaf<ValType>>(&mut self.id, right_id);
+        let left_leaf = field::borrow_mut<u64, Leaf<ValType>>(&mut self.id, left_id);
+        append_right(&mut left_leaf.keys_vals, &right_keys_vals);
+        left_leaf.next = right_next;
+    }
+
+    fun update_after_migration<ValType: copy + drop + store>(self: &mut BPTree<ValType>, node_id: u64, keys_num: &mut u64, child_index: u64, new_split_key: u128) {
+        let node = field::borrow_mut<u64, Node>(&mut self.id, node_id);
+        if (new_split_key == 0) {
+            node.keys.remove(child_index);
+            node.children.remove(child_index + 1);
+            *keys_num = *keys_num - 1;
+            return
+        };
+        // node.keys[child_index] = new_split_key;
+        *node.keys.borrow_mut(child_index) = new_split_key;
+    }
+
+    fun update_after_migration_last<ValType: copy + drop + store>(self: &mut BPTree<ValType>, node_id: u64, keys_num: &mut u64, child_index: u64, new_split_key: u128) {
+        let node = field::borrow_mut<u64, Node>(&mut self.id, node_id);
+        if (new_split_key == 0) {
+            node.keys.pop_back();
+            node.children.pop_back();
+            *keys_num = *keys_num - 1;
+            return
+        };
+        *node.keys.borrow_mut(child_index) = new_split_key;
+    }
+
     fun binary_search(keys: &vector<u128>, target: u128): u64 {
         if (keys.length() == 0) {
             return 0
@@ -209,6 +423,58 @@ module orderbook::bp_tree {
         (left, false)
     }
 
+    fun append_left<T: copy + drop + store>(left_vec: vector<T>, right_vec: &mut vector<T>) {
+        let mut tmp = vector[];
+        let mut i = 0;
+        while (i < left_vec.length()) {
+            tmp.push_back(left_vec[i]);
+            i = i + 1;
+        };
+        i = 0;
+        while (i < right_vec.length()) {
+            tmp.push_back(right_vec[i]);
+            i = i + 1;
+        };
+        *right_vec = tmp;
+    }
+    
+    fun append_reversed_right<T0: copy + drop + store>(left_vec: &mut vector<T0>, mut right_vec: vector<T0>) {
+        while (right_vec.length() > 0) {
+            left_vec.push_back(right_vec.pop_back());
+        };
+    }
+
+    fun append_right<T: copy + drop + store>(left_vec: &mut vector<T>, right_vec: &vector<T>) {
+        let mut i = 0;
+        while (i < right_vec.length()) {
+            left_vec.push_back(right_vec[i]);
+            i = i + 1;
+        };
+    }
+
+    fun cut_reversed_left<T: copy + drop + store>(vec: &mut vector<T>, cut_num: u64) : vector<T> {
+        let mut result = vector[];
+        let mut i = cut_num;
+        while (i > 0) {
+            i = i - 1;
+            result.push_back(vec[i]);
+        };
+        drop_left(vec, cut_num);
+        result
+    }
+
+    fun cut_reversed_left1<T: copy + drop + store>(vec: &mut vector<T>, cut_num: u64) : (T, vector<T>) {
+        let mut result = vector[];
+        let cut_num_m1 = cut_num - 1;
+        let mut i = cut_num_m1;
+        while (i > 0) {
+            i = i - 1;
+            result.push_back(vec[i]);
+        };
+        drop_left(vec, cut_num);
+        (*vec.borrow_mut(cut_num_m1), result)
+    }
+
     fun cut_right<T: copy + drop + store>(vec: &mut vector<T>, mut cut_num: u64) : vector<T> {
         let mut result = vector[];
         let mut i = vec.length() - cut_num;
@@ -225,12 +491,51 @@ module orderbook::bp_tree {
         result
     }
 
+    fun drop_left<T: copy + drop + store>(vec: &mut vector<T>, mut drop_until: u64) {
+        let mut tmp = vector[];
+        while (drop_until < vec.length()) {
+            tmp.push_back(vec[drop_until]);
+            drop_until = drop_until + 1;
+        };
+        *vec = tmp;
+    }
+
     #[test]
     fun cut_right_test() {
         let mut vec = vector[1, 2, 3, 4, 5, 6, 7];
         let result = cut_right(&mut vec, 4);
         assert!(vec == vector[1, 2, 3], 0);
         assert!(result == vector[4, 5, 6, 7], 0);
+    }
+
+    #[test]
+    fun drop_left_test() {
+        let mut vec = vector[1, 2, 3, 4, 5, 6, 7];
+        drop_left(&mut vec, 4);
+        assert!(vec == vector[5, 6, 7], 0);
+    }
+
+    #[test]
+    fun drop_left_test2() {
+        let mut vec = vector[1, 2, 3, 4, 5, 6, 7];
+        drop_left(&mut vec, 2);
+        assert!(vec == vector[3, 4, 5, 6, 7], 0);
+    }
+
+    #[test]
+    fun append_left_test() {
+        let vec = vector[1, 2, 3];
+        let mut vec2 = vector[4, 5, 6];
+        append_left(vec, &mut vec2);
+        assert!(vec2 == vector[1, 2, 3, 4, 5, 6], 0);
+    }
+
+    #[test]
+    fun append_right_test() {
+        let mut vec = vector[1, 2, 3];
+        let vec2 = vector[4, 5, 6];
+        append_right(&mut vec, &vec2);
+        assert!(vec == vector[1, 2, 3, 4, 5, 6], 0);
     }
 
     #[test_only]
@@ -276,6 +581,4 @@ module orderbook::bp_tree {
         let BPTree { id, size: _, counter: _, root: _, first: _, children_min: _, children_max: _, leaf_min: _, leaf_max: _ } = self;
         id.delete();
     }
-
-
 }
