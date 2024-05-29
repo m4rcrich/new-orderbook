@@ -62,6 +62,38 @@ module orderbook::bp_tree {
         bp_tree
     }
 
+    public(package) fun first_leaf_ptr<ValType: copy + drop + store>(self: &BPTree<ValType>): u64 {
+        self.first
+    }
+
+    public(package) fun borrow_leaf<ValType: copy + drop + store>(self: &BPTree<ValType>, leaf_id: u64): &Leaf<ValType> {
+        field::borrow<u64, Leaf<ValType>>(&self.id, leaf_id)
+    }
+
+    public(package) fun borrow_leaf_mut<ValType: copy + drop + store>(self: &mut BPTree<ValType>, leaf_id: u64): &mut Leaf<ValType> {
+        field::borrow_mut<u64, Leaf<ValType>>(&mut self.id, leaf_id)
+    }
+
+    public(package) fun borrow_leaf_elem<ValType: copy + drop + store>(leaf: &Leaf<ValType>, index: u64): (u128, &ValType) {
+        // let key_val = leaf.keys_vals.borrow(index);
+        let key_val = &leaf.keys_vals[index];
+        (key_val.key, &key_val.val)
+    }
+
+    public(package) fun borrow_leaf_elem_mut<ValType: copy + drop + store>(leaf: &mut Leaf<ValType>, index: u64): (u128, &mut ValType) {
+        // let key_val = leaf.keys_vals.borrow_mut(index);
+        let key_val = &mut leaf.keys_vals[index];
+        (key_val.key, &mut key_val.val)
+    }
+
+    public(package) fun leaf_next<ValType: copy + drop + store>(leaf: &Leaf<ValType>): u64 {
+        leaf.next
+    }
+
+    public(package) fun leaf_size<ValType: copy + drop + store>(leaf: &Leaf<ValType>): u64 {
+        leaf.keys_vals.length()
+    }
+
     public(package) fun insert<ValType: copy + drop + store>(self: &mut BPTree<ValType>, key: u128, val: ValType) {
         // std::debug::print(&std::string::utf8(b"insert"));
         let mut current_id = self.root;
