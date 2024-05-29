@@ -1,6 +1,6 @@
 [package]
 name = "oracle_reader_v3"
-edition = "2024.beta"
+edition = "2024.alpha"
 # license = ""           # e.g., "MIT", "GPL", "Apache 2.0"
 # authors = ["..."]      # e.g., ["Joe Smith (joesmith@noemail.com)", "John Snow (johnsnow@noemail.com)"]
 

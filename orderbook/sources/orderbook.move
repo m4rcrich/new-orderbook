@@ -50,7 +50,7 @@ module orderbook::orderbook {
             post_receipt.base_ask = post_receipt.base_ask + size;
         } else {
             post_receipt.base_bid = post_receipt.base_bid + size;
-        }
+        };
         post_receipt.pending_orders = post_receipt.pending_orders + 1;
     }
 
