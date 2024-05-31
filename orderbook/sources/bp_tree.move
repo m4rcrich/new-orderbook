@@ -415,6 +415,7 @@ module orderbook::bp_tree {
             } else if (key < target) {
                 left = mid + 1
             } else {
+                if (mid == 0) return 0;
                 right = mid - 1
             };
         };
@@ -436,6 +437,7 @@ module orderbook::bp_tree {
             } else if (key < target_key) {
                 left = mid + 1
             } else {
+                if (mid == 0) return (mid, false);
                 right = mid - 1
             };
         };
