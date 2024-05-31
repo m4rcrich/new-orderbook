@@ -633,6 +633,51 @@ module orderbook::bp_tree {
     }
 
     #[test_only]
+    public fun check_tree(self: &BPTree<u64>): bool {
+        self.check_tree_int(self.root, 0, 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF)
+    }
+
+    #[test_only]
+    fun check_tree_int(self: &BPTree<u64>, node_id: u64, min_key: u128, max_key: u128): bool {
+        let is_leaf = (node_id & LEAF_FLAG != 0);
+        if (is_leaf) {
+            let leaf = field::borrow<u64, Leaf<u64>>(&self.id, node_id);
+            let mut i = 0;
+            while (i < leaf.keys_vals.length()) {
+                if (leaf.keys_vals[i].key < min_key || leaf.keys_vals[i].key > max_key) {
+                    return false
+                };
+                if (i > 0 && leaf.keys_vals[i].key <= leaf.keys_vals[i - 1].key) {
+                    return false
+                };
+                i = i + 1;
+            };
+            return true
+        };
+
+        let node = field::borrow<u64, Node>(&self.id, node_id);
+        let mut i = 0;
+        while (i < node.keys.length()) {
+            if (node.keys[i] < min_key || node.keys[i] > max_key) {
+                return false
+            };
+            if (i > 0 && node.keys[i] <= node.keys[i - 1]) {
+                return false
+            };
+            if (!check_tree_int(self, node.children[i], min_key, node.keys[i])) {
+                return false
+            };
+            i = i + 1;
+        };
+
+        if (!check_tree_int(self, node.children[i], node.keys[i - 1], max_key)) {
+            return false
+        };
+
+        true
+    }
+
+    #[test_only]
     public fun drop<ValType: copy + drop + store>(self: BPTree<ValType>) {
         let BPTree { id, size: _, counter: _, root: _, first: _, children_min: _, children_max: _, leaves_min: _, leaves_max: _ } = self;
         id.delete();
