@@ -6,8 +6,6 @@ module orderbook::bp_tree {
     const EKeyAlreadyExists: u64 = 0;
     const EKeyNotFound: u64 = 1;
 
-
-
     const LEAF_FLAG: u64 = 0x8000_0000_0000_0000;
 
     public struct BPTree<phantom ValType: store> has key, store {
@@ -201,6 +199,23 @@ module orderbook::bp_tree {
 
     }
 
+    public(package) fun batch_drop<ValType: copy + drop + store>(bp_tree: &mut BPTree<ValType>, mut key: u128, inclusive: bool) {
+        if (!inclusive) {
+            if (key == 0) {
+                return
+            };
+            key = key - 1;
+        };
+        // batch_drop_from_root<ValType>(bp_tree, key); NEEDS TO BE IMPLEMENTED
+        return
+    }
+
+    //TODO: implement batch_drop_from_root
+
+    public(package) fun is_empty<ValType: copy + drop + store>(bp_tree: &BPTree<ValType>) : bool {
+        bp_tree.size == 0
+    }
+
     public(package) fun remove<ValType: copy + drop + store>(self: &mut BPTree<ValType>, key: u128): ValType {
         let root = self.root;
         if (root & LEAF_FLAG == 0) {
@@ -214,6 +229,10 @@ module orderbook::bp_tree {
             let (removed_val, _) = self.remove_from_leaf(root, key);
             removed_val
         }
+    }
+
+    public(package) fun min_key<ValType: copy + drop + store>(bp_tree: &BPTree<ValType>) : u128 {
+        std::vector::borrow<KeyVal<ValType>>(&sui::dynamic_field::borrow<u64, Leaf<ValType>>(&bp_tree.id, bp_tree.first).keys_vals, 0).key
     }
 
     fun remove_from_node<ValType: copy + drop + store>(self: &mut BPTree<ValType>, node_id: u64, key: u128) : (ValType, u64) {

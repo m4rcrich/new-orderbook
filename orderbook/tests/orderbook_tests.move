@@ -1,3 +1,13 @@
+#[test_only]
+module orderbook::orderbook_test {
+    use orderbook::orderbook;
+
+    #[test]
+    fun test() {
+        
+    }
+}
+
 // #[test_only]
 // module orderbook::orderbook_test {
 //     use orderbook::orderbook::{add_to_post_receipt, best_price, cancel_limit_order, create_orderbook, fill_limit_order, fill_market_order, place_limit_order, place_market_order, create_empty_post_receipt};

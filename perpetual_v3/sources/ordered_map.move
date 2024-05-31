@@ -359,6 +359,7 @@ module perpetual_v3::ordered_map {
             return
         };
     }
+    
     fun binary_search(keys: &vector<u128>, size: u64, target: u128) : u64 {
         let low = 0;
         while (low < size) {
