@@ -54,13 +54,13 @@ module orderbook::orderbook {
         BidsMap{dummy_field: false}
     }
 
-    public fun create_orderbook(children_order: u64, leaf_order:u64, ctx: &mut TxContext): Orderbook {
+    public fun create_orderbook(node_keys_min: u64, leaves_min: u64, ctx: &mut TxContext): Orderbook {
         let mut orderbook = Orderbook{
             id      : object::new(ctx),
             counter : 0,
         };
-        ofield::add<AsksMap, BPTree<Order>>(&mut orderbook.id, asks_map(), empty<Order>(children_order, leaf_order, ctx));
-        ofield::add<BidsMap, BPTree<Order>>(&mut orderbook.id, bids_map(), empty<Order>(children_order, leaf_order, ctx));
+        ofield::add<AsksMap, BPTree<Order>>(&mut orderbook.id, asks_map(), empty<Order>(node_keys_min, leaves_min, ctx));
+        ofield::add<BidsMap, BPTree<Order>>(&mut orderbook.id, bids_map(), empty<Order>(node_keys_min, leaves_min, ctx));
         orderbook
     }
 
