@@ -199,13 +199,13 @@ module orderbook::bp_tree {
 
     }
 
-    public(package) fun batch_drop<ValType: copy + drop + store>(bp_tree: &mut BPTree<ValType>, mut key: u128, inclusive: bool) {
-        if (!inclusive) {
-            if (key == 0) {
-                return
-            };
-            key = key - 1;
-        };
+    public(package) fun batch_drop<ValType: copy + drop + store>(_bp_tree: &mut BPTree<ValType>, mut _key: u128, _inclusive: bool) {
+        // if (!inclusive) {
+        //     if (key == 0) {
+        //         return
+        //     };
+        //     key = key - 1;
+        // };
         // batch_drop_from_root<ValType>(bp_tree, key); NEEDS TO BE IMPLEMENTED
         return
     }
@@ -233,6 +233,17 @@ module orderbook::bp_tree {
 
     public(package) fun min_key<ValType: copy + drop + store>(bp_tree: &BPTree<ValType>) : u128 {
         std::vector::borrow<KeyVal<ValType>>(&sui::dynamic_field::borrow<u64, Leaf<ValType>>(&bp_tree.id, bp_tree.first).keys_vals, 0).key
+    }
+
+    public(package) fun max_key<ValType: copy + drop + store>(self: &BPTree<ValType>): u128 {
+        let mut current_id = self.root;
+        while (current_id & LEAF_FLAG == 0) {
+            let node = field::borrow<u64, Node>(&self.id, current_id);
+            current_id = node.children[node.children.length() - 1];
+        };
+        let leaf = field::borrow<u64, Leaf<ValType>>(&self.id, current_id);
+        let key_val: &KeyVal<ValType> = &leaf.keys_vals[leaf.keys_vals.length() - 1];
+        key_val.key
     }
 
     fun remove_from_node<ValType: copy + drop + store>(self: &mut BPTree<ValType>, node_id: u64, key: u128) : (ValType, u64) {

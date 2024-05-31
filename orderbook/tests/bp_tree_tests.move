@@ -32,5 +32,23 @@ module orderbook::bp_tree_tests {
         bp_tree.drop();
     }
 
+    #[test]
+    fun test_bptree_max_key() {
+        let mut ctx = tx_context::dummy();
+        let mut tree = bp_tree::empty<u64>(1, 1, &mut ctx);
+        tree.insert(1, 1);
+        tree.insert(2, 2);
+        tree.insert(3, 3);
+        tree.insert(4, 4);
+        tree.insert(5, 5);
+        tree.insert(6, 6);
+        tree.insert(7, 7);
+        tree.insert(8, 8);
+        tree.insert(9, 9);
+
+        let key = tree.max_key();
+        assert!(key == 9, 0);
+        tree.drop();
+    }
 }
 
