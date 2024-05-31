@@ -50,5 +50,24 @@ module orderbook::bp_tree_tests {
         assert!(key == 9, 0);
         tree.drop();
     }
+
+    #[test]
+    fun test_bptree_getallkeys() {
+        let mut ctx = tx_context::dummy();
+        let mut tree = bp_tree::empty<u64>(1, 1, &mut ctx);
+        tree.insert(1, 1);
+        tree.insert(2, 2);
+        tree.insert(3, 3);
+        tree.insert(4, 4);
+        tree.insert(5, 5);
+        tree.insert(6, 6);
+        tree.insert(7, 7);
+        tree.insert(8, 8);
+        tree.insert(9, 9);
+
+        let keys = tree.get_all_keys();
+        assert!(keys == vector[1, 2, 3, 4, 5, 6, 7, 8, 9], 0);
+        tree.drop();
+    }
 }
 

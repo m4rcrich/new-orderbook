@@ -92,6 +92,16 @@ module orderbook::bp_tree {
         leaf.keys_vals.length()
     }
 
+    public(package) fun leaf_keys<ValType: copy + drop + store>(leaf: &Leaf<ValType>): vector<u128> {
+        let mut keys = vector<u128>[];
+        let mut i = 0;
+        while (i < leaf.keys_vals.length()) {
+            keys.push_back(leaf.keys_vals[i].key);
+            i = i + 1;
+        };
+        keys
+    }
+
     public(package) fun insert<ValType: copy + drop + store>(self: &mut BPTree<ValType>, key: u128, val: ValType) {
         // std::debug::print(&std::string::utf8(b"insert"));
         let mut current_id = self.root;
@@ -244,6 +254,20 @@ module orderbook::bp_tree {
         let leaf = field::borrow<u64, Leaf<ValType>>(&self.id, current_id);
         let key_val: &KeyVal<ValType> = &leaf.keys_vals[leaf.keys_vals.length() - 1];
         key_val.key
+    }
+
+    public(package) fun get_all_keys<ValType: copy + drop + store>(bp_tree: &BPTree<ValType>): vector<u128> {
+        let mut current_leaf = sui::dynamic_field::borrow<u64, Leaf<ValType>>(&bp_tree.id, bp_tree.first);
+        let mut keys = leaf_keys(current_leaf);
+
+        loop {
+            let next_leaf = sui::dynamic_field::borrow<u64, Leaf<ValType>>(&bp_tree.id, leaf_next(current_leaf));
+            keys.append(leaf_keys(next_leaf));
+            // Reached the end, last leaf points to itself
+            if (next_leaf.next == current_leaf.next) break;
+            current_leaf = next_leaf;
+        };
+        keys
     }
 
     fun remove_from_node<ValType: copy + drop + store>(self: &mut BPTree<ValType>, node_id: u64, key: u128) : (ValType, u64) {
