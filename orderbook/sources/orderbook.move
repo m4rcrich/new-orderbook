@@ -39,28 +39,18 @@ module orderbook::orderbook {
     // }
 
     public struct AsksMap has copy, drop, store {
-        dummy_field: bool,
     }
 
     public struct BidsMap has copy, drop, store {
-        dummy_field: bool,
     }
 
-    fun asks_map(): AsksMap {
-        AsksMap{dummy_field: false}
-    }
-
-    fun bids_map(): BidsMap {
-        BidsMap{dummy_field: false}
-    }
-
-    public fun create_orderbook(node_keys_min: u64, leaves_min: u64, ctx: &mut TxContext): Orderbook {
+    public fun create_orderbook(node_keys_min: u64, leaf_min: u64, ctx: &mut TxContext): Orderbook {
         let mut orderbook = Orderbook{
             id      : object::new(ctx),
             counter : 0,
         };
-        ofield::add<AsksMap, BPTree<Order>>(&mut orderbook.id, asks_map(), empty<Order>(node_keys_min, leaves_min, ctx));
-        ofield::add<BidsMap, BPTree<Order>>(&mut orderbook.id, bids_map(), empty<Order>(node_keys_min, leaves_min, ctx));
+        ofield::add<AsksMap, BPTree<Order>>(&mut orderbook.id, AsksMap{}, empty<Order>(node_keys_min, leaf_min, ctx));
+        ofield::add<BidsMap, BPTree<Order>>(&mut orderbook.id, BidsMap{}, empty<Order>(node_keys_min, leaf_min, ctx));
         orderbook
     }
 
@@ -274,19 +264,19 @@ module orderbook::orderbook {
     }
 
     fun get_asks(orderbook: &Orderbook): &BPTree<Order> {
-        ofield::borrow<AsksMap, BPTree<Order>>(&orderbook.id, asks_map())
+        ofield::borrow<AsksMap, BPTree<Order>>(&orderbook.id, AsksMap{})
     }
 
     fun get_asks_mut(orderbook: &mut Orderbook): &mut BPTree<Order> {
-        ofield::borrow_mut<AsksMap, BPTree<Order>>(&mut orderbook.id, asks_map())
+        ofield::borrow_mut<AsksMap, BPTree<Order>>(&mut orderbook.id, AsksMap{})
     }
 
     fun get_bids(orderbook: &Orderbook): &BPTree<Order> {
-        ofield::borrow<BidsMap, BPTree<Order>>(&orderbook.id, bids_map())
+        ofield::borrow<BidsMap, BPTree<Order>>(&orderbook.id, BidsMap{})
     }
 
     fun get_bids_mut(orderbook: &mut Orderbook): &mut BPTree<Order> {
-        ofield::borrow_mut<BidsMap, BPTree<Order>>(&mut orderbook.id, bids_map())
+        ofield::borrow_mut<BidsMap, BPTree<Order>>(&mut orderbook.id, BidsMap{})
     }
 
     public fun get_fill_receipt_info(fill_receipt: &FillReceipt): (u64, u128, u64, u64) {

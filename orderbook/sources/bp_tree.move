@@ -16,8 +16,8 @@ module orderbook::bp_tree {
         first: u64,
         children_min: u64,
         children_max: u64,
-        leaves_min: u64,
-        leaves_max: u64,
+        leaf_min: u64,
+        leaf_max: u64,
     }
 
     public struct Node has drop, store {
@@ -38,8 +38,8 @@ module orderbook::bp_tree {
     }
 
     // node_keys_min: min number of keys in a node, max number of keys in a node is 2 * node_keys_min, min number of children in a node is node_keys_min + 1, max number of children in a node is 2 * node_keys_min + 1
-    // leaves_min: min number of keys in a leaf; max number of keys in a leaf is 2 * leaf_order
-    public(package) fun empty<ValType: copy + drop + store>(node_keys_min: u64, leaves_min: u64, ctx: &mut TxContext): BPTree<ValType> {
+    // leaf_min: min number of keys in a leaf; max number of keys in a leaf is 2 * leaf_min
+    public(package) fun empty<ValType: copy + drop + store>(node_keys_min: u64, leaf_min: u64, ctx: &mut TxContext): BPTree<ValType> {
         let root = LEAF_FLAG;
         let mut bp_tree = BPTree<ValType>{
             id: object::new(ctx),
@@ -49,8 +49,8 @@ module orderbook::bp_tree {
             first: root,
             children_min: node_keys_min + 1,
             children_max: 2 * node_keys_min + 1,
-            leaves_min: leaves_min,
-            leaves_max: 2 * leaves_min,
+            leaf_min: leaf_min,
+            leaf_max: 2 * leaf_min,
         };
         let leaf = Leaf<ValType> {
             keys_vals: vector[],
@@ -130,16 +130,16 @@ module orderbook::bp_tree {
         self.size = self.size + 1;
 
         // if leaf is full then split
-        if (leaf.keys_vals.length() > self.leaves_max) {
+        if (leaf.keys_vals.length() > self.leaf_max) {
             // split leaf
             let new_leaf_id = LEAF_FLAG | self.counter;
             self.counter = self.counter + 1;
             leaf.next = new_leaf_id;
             // std::debug::print(&std::string::utf8(b"before split leaf"));
             // std::debug::print(&leaf.keys_vals);
-            let start_cut = leaf.keys_vals.length() / 2;
+            let cut_num = leaf.keys_vals.length() / 2;
             let new_leaf = Leaf<ValType> {
-                keys_vals: cut_right(&mut leaf.keys_vals, start_cut + 1), // why + 1?
+                keys_vals: cut_right(&mut leaf.keys_vals, cut_num + 1), // why + 1?
                 next: leaf.next,
             };
             // std::debug::print(&std::string::utf8(b"after split leaf"));
@@ -167,10 +167,10 @@ module orderbook::bp_tree {
                     // std::debug::print(&std::string::utf8(b"before split"));
                     // std::debug::print(&node.keys);
                     // std::debug::print(&node.children);
-                    let start_cut = node.children.length() / 2;
+                    let cut_num = node.children.length() / 2;
                     let new_node = Node {
-                        keys: cut_right(&mut node.keys, start_cut - 1),
-                        children: cut_right(&mut node.children, start_cut),
+                        keys: cut_right(&mut node.keys, cut_num - 1),
+                        children: cut_right(&mut node.children, cut_num),
                     };
                     // std::debug::print(&std::string::utf8(b"after split"));
                     // std::debug::print(&node.keys);
@@ -301,7 +301,7 @@ module orderbook::bp_tree {
         } else {
             if (child_index < keys_num) { // not last child
                 let (removed_val, remaining_size) = self.remove_from_leaf(child_id, key);
-                if (remaining_size < self.leaves_min) {
+                if (remaining_size < self.leaf_min) {
                     let from_id = node_children[child_index + 1];
                     let new_split_key = migrate_to_left_leaf(self, child_id, remaining_size, from_id);
                     update_after_migration(self, node_id, &mut keys_num, child_index, new_split_key);
@@ -309,7 +309,7 @@ module orderbook::bp_tree {
                 (removed_val, keys_num + 1)
             } else { // last child
                 let (removed_val, remaining_size) = self.remove_from_leaf(child_id, key);
-                if (remaining_size < self.leaves_min) {
+                if (remaining_size < self.leaf_min) {
                     let prev_child_index = child_index - 1;
                     let from_id = node_children[prev_child_index];
                     let new_split_key = migrate_to_right_leaf(self, from_id, child_id, remaining_size);
@@ -379,7 +379,7 @@ module orderbook::bp_tree {
     fun migrate_to_left_leaf<ValType: copy + drop + store>(self: &mut BPTree<ValType>, left_id: u64, left_size: u64, right_id: u64): u128 {
         let right_leaf = field::borrow_mut<u64, Leaf<ValType>>(&mut self.id, right_id);
         let merged_size = left_size + right_leaf.keys_vals.length();
-        if (merged_size <= self.leaves_max) { //???CHECK
+        if (merged_size <= self.leaf_max) { //???CHECK
             merge_leaves(self, left_id, right_id);
             return 0
         };
@@ -392,7 +392,7 @@ module orderbook::bp_tree {
     fun migrate_to_right_leaf<ValType: copy + drop + store>(self: &mut BPTree<ValType>, left_id: u64, right_id: u64, right_size: u64): u128 {
         let left_leaf = field::borrow_mut<u64, Leaf<ValType>>(&mut self.id, left_id);
         let merged_size = left_leaf.keys_vals.length() + right_size;
-        if (merged_size <= self.leaves_max) { //???CHECK
+        if (merged_size <= self.leaf_max) { //???CHECK
             merge_leaves(self, left_id, right_id);
             return 0
         };
@@ -679,7 +679,7 @@ module orderbook::bp_tree {
 
     #[test_only]
     public fun drop<ValType: copy + drop + store>(self: BPTree<ValType>) {
-        let BPTree { id, size: _, counter: _, root: _, first: _, children_min: _, children_max: _, leaves_min: _, leaves_max: _ } = self;
+        let BPTree { id, size: _, counter: _, root: _, first: _, children_min: _, children_max: _, leaf_min: _, leaf_max: _ } = self;
         id.delete();
     }
 }
