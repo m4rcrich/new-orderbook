@@ -139,13 +139,13 @@ module orderbook::bp_tree {
             // std::debug::print(&leaf.keys_vals);
             let cut_num = leaf.keys_vals.length() / 2;
             let new_leaf = Leaf<ValType> {
-                keys_vals: cut_right(&mut leaf.keys_vals, cut_num + 1), // why + 1?
+                keys_vals: cut_right(&mut leaf.keys_vals, cut_num),
                 next: leaf.next,
             };
             // std::debug::print(&std::string::utf8(b"after split leaf"));
             // std::debug::print(&leaf.keys_vals);
             // std::debug::print(&new_leaf.keys_vals);
-            let mut mid_key = new_leaf.keys_vals[0].key;
+            let mut mid_key = leaf.keys_vals[leaf.keys_vals.length() - 1].key;
             field::add(&mut self.id, new_leaf_id, new_leaf);
 
             let mut new_node_id = new_leaf_id;
@@ -286,7 +286,7 @@ module orderbook::bp_tree {
                     let new_split_key = migrate_to_left_branch(self, child_id, remaining_size, split_key, from_id);
                     update_after_migration(self, node_id, &mut keys_num, child_index, new_split_key);
                 };
-                (removed_val, keys_num + 1) // why +1, check node.keys.length() here
+                (removed_val, keys_num + 1)
             } else { // last child
                 let (removed_val, remaining_size) = self.remove_from_node(child_id, key);
                 if (remaining_size < self.children_min) {
@@ -446,7 +446,7 @@ module orderbook::bp_tree {
             let mid = (left + right) / 2;
             let key = keys[mid];
             if (key == target) {
-                return mid + 1
+                return mid
             } else if (key < target) {
                 left = mid + 1
             } else {
@@ -527,8 +527,9 @@ module orderbook::bp_tree {
             i = i - 1;
             result.push_back(vec[i]);
         };
+        let split_key = vec[cut_num_m1];
         drop_left(vec, cut_num);
-        (*vec.borrow_mut(cut_num_m1), result)
+        (split_key, result)
     }
 
     fun cut_right<T: copy + drop + store>(vec: &mut vector<T>, mut cut_num: u64): vector<T> {
@@ -595,39 +596,46 @@ module orderbook::bp_tree {
     }
 
     #[test_only]
-    public fun traverse_tree<ValType: copy + drop + store>(self: &BPTree<ValType>): vector<vector<u128>> {
+    public fun traverse_tree<ValType: copy + drop + store>(self: &BPTree<ValType>): vector<vector<vector<u128>>> {
         let mut result = vector[];
 
         // BFS
         let mut queue = vector[self.root];
 
         while (queue.length() > 0) {
-            let current_id = queue.remove(0);
-            if (current_id & LEAF_FLAG == 0) {
+            let level_size = queue.length();
+            let mut i = 0;
+            let mut level = vector[];
+            while (i < level_size) {
+                let current_id = queue.remove(0);
+                if (current_id & LEAF_FLAG == 0) {
 
-                let node = field::borrow<u64, Node>(&self.id, current_id);
-                let mut node_res = vector[];
-                let mut i = 0;
-                while (i < node.keys.length()) {
-                    node_res.push_back(node.keys[i]);
-                    i = i + 1;
+                    let node = field::borrow<u64, Node>(&self.id, current_id);
+                    let mut node_res = vector[];
+                    let mut j = 0;
+                    while (j < node.keys.length()) {
+                        node_res.push_back(node.keys[j]);
+                        j = j + 1;
+                    };
+                    level.push_back(node_res);
+                    let mut j = 0;
+                    while (j < node.children.length()) {
+                        queue.push_back(node.children[j]);
+                        j = j + 1;
+                    };
+                } else {
+                    let leaf = field::borrow<u64, Leaf<ValType>>(&self.id, current_id);
+                    let mut leaf_res = vector[];
+                    let mut j = 0;
+                    while (j < leaf.keys_vals.length()) {
+                        leaf_res.push_back(leaf.keys_vals[j].key);
+                        j = j + 1;
+                    };
+                    level.push_back(leaf_res);
                 };
-                result.push_back(node_res);
-                let mut i = 0;
-                while (i < node.children.length()) {
-                    queue.push_back(node.children[i]);
-                    i = i + 1;
-                };
-            } else {
-                let leaf = field::borrow<u64, Leaf<ValType>>(&self.id, current_id);
-                let mut leaf_res = vector[];
-                let mut i = 0;
-                while (i < leaf.keys_vals.length()) {
-                    leaf_res.push_back(leaf.keys_vals[i].key);
-                    i = i + 1;
-                };
-                result.push_back(leaf_res);
-            }
+                i = i + 1;
+            };
+            result.push_back(level);
         };
         result
     }
@@ -644,7 +652,7 @@ module orderbook::bp_tree {
             let leaf = field::borrow<u64, Leaf<u64>>(&self.id, node_id);
             let mut i = 0;
             while (i < leaf.keys_vals.length()) {
-                if (leaf.keys_vals[i].key < min_key || leaf.keys_vals[i].key > max_key) {
+                if (leaf.keys_vals[i].key <= min_key || leaf.keys_vals[i].key > max_key) {
                     return false
                 };
                 if (i > 0 && leaf.keys_vals[i].key <= leaf.keys_vals[i - 1].key) {
@@ -658,14 +666,20 @@ module orderbook::bp_tree {
         let node = field::borrow<u64, Node>(&self.id, node_id);
         let mut i = 0;
         while (i < node.keys.length()) {
-            if (node.keys[i] < min_key || node.keys[i] > max_key) {
+            if (node.keys[i] <= min_key || node.keys[i] > max_key) {
                 return false
             };
             if (i > 0 && node.keys[i] <= node.keys[i - 1]) {
                 return false
             };
-            if (!check_tree_int(self, node.children[i], min_key, node.keys[i])) {
-                return false
+            if (i == 0) {
+                if (!check_tree_int(self, node.children[i], min_key, node.keys[i])) {
+                    return false
+                };
+            } else {
+                if (!check_tree_int(self, node.children[i], node.keys[i - 1], node.keys[i])) {
+                    return false
+                };
             };
             i = i + 1;
         };
